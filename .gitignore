@@ -1,8 +1,10 @@
 __pycache__/
 *.py[cod]
+.venv/
 .pytest_cache/
 .coverage
 .DS_Store
 
+outputs/
 *.xlsx
 !docs/**/*.xlsx

@@ -1,0 +1,16 @@
+[project]
+name = "graham-screen"
+version = "0.1.0"
+description = "A-share Graham-style first-pass quantitative screen from LiXinger CSV exports."
+requires-python = ">=3.10"
+dependencies = [
+    "openpyxl>=3.1",
+    "pandas>=2.2",
+]
+
+[project.scripts]
+graham-screen = "graham_screen.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -16,7 +16,7 @@ The merge key is `交易所 + 代码`. CSV1 is used as the left table, so CSV2-o
 ## Run
 
 ```bash
-python3 scripts/graham_screen.py \
+uv run graham-screen \
   公司筛选_格雷厄姆CSV1_20260622_212016.csv \
   公司筛选_格雷厄姆CSV2_20260622_212026.csv \
   --output 格雷厄姆第一版筛选结果.xlsx
@@ -25,7 +25,7 @@ python3 scripts/graham_screen.py \
 ## Test
 
 ```bash
-python3 -m unittest discover -s tests -v
+uv run python -m unittest discover -s tests -v
 ```
 
 ## Output
