@@ -6,5 +6,6 @@ __pycache__/
 .DS_Store
 
 outputs/
+tmp/
 *.xlsx
 !docs/**/*.xlsx

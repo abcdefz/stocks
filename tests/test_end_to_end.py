@@ -5,14 +5,20 @@ import tempfile
 import unittest
 
 import openpyxl
+import pandas as pd
 
-from graham_screen.cli import run_screen
+from graham_screen.cli import _market_for_frame, run_screen
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class EndToEndTest(unittest.TestCase):
+    def test_market_detection_ignores_lixinger_footer_rows(self):
+        frame = pd.DataFrame({"交易所": ["hk", "数据来源于：理杏仁网站(lixinger.com)"]})
+
+        self.assertEqual(_market_for_frame(frame), "hk")
+
     def test_script_entrypoint_help_loads_package(self):
         script = ROOT / "scripts" / "graham_screen.py"
 

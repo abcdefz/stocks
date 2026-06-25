@@ -80,6 +80,11 @@ def canonicalize_csv1(raw: pd.DataFrame) -> pd.DataFrame:
     pe_pct_deducted = _numeric(frame, _find_column(columns, ("PE-TTM(扣非)统计值(10年)", "分位点")), percent=True)
     pb_pct_plain = _numeric(frame, _find_column(columns, ("PB统计值(10年)", "分位点"), ("不含商誉",)), percent=True)
     pb_pct_no_goodwill = _numeric(frame, _find_column(columns, ("PB(不含商誉)统计值(10年)", "分位点")), percent=True)
+    market_cap_column = (
+        _find_column(columns, ("A股市值",))
+        or _find_column(columns, ("H股市值",))
+        or _find_column(columns, ("市值", "最新时间"), ("流通", "港股通"))
+    )
 
     out["PE-TTM_普通"] = pe_plain
     out["PE-TTM扣非"] = pe_deducted
@@ -89,9 +94,9 @@ def canonicalize_csv1(raw: pd.DataFrame) -> pd.DataFrame:
     out["PB"] = _coalesce(pb_no_goodwill, pb_plain)
     out["PE十年分位"] = _coalesce(pe_pct_deducted, pe_pct_plain)
     out["PB十年分位"] = _coalesce(pb_pct_no_goodwill, pb_pct_plain)
+    out["A股市值"] = _numeric(frame, market_cap_column, percent=False)
 
     mappings = {
-        "A股市值": (("A股市值",), (), False),
         "股息率": (("股息率", "最新时间"), ("统计",), True),
         "股息率十年分位": (("股息率统计值(10年)", "分位点"), (), True),
         "ROE": (("净资产收益率(ROE)",), ("归属于", "最新Q4"), True),
@@ -151,6 +156,7 @@ def canonicalize_csv2(raw: pd.DataFrame) -> pd.DataFrame:
     _assign_history(frame, out, "ROE", ("净资产收益率(ROE)",), ("扣非", "归属于"), percent=True)
     _assign_history(frame, out, "扣非ROE", ("扣非ROE",), (), percent=True)
     _assign_history(frame, out, "归母净利润", ("股东的净利润",), ("扣除非经常性",), percent=False)
+    _assign_history(frame, out, "归母净利润", ("归属于母公司股东及其他权益持有者的净利润",), (), percent=False)
     _assign_history(frame, out, "扣非归母净利润", ("扣除非经常性损益的净利润",), (), percent=False)
     _assign_history(frame, out, "自由现金流", ("自由现金流量",), (), percent=False)
     _assign_history(frame, out, "经营现金流净额", ("经营活动产生的现金流量净额",), (), percent=False)

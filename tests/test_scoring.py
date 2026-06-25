@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from graham_screen.scoring import build_bank_candidate_pool, score_ordinary_companies
+from graham_screen.scoring import build_bank_candidate_pool, rules_for_market, score_ordinary_companies
 
 
 class ScoringTest(unittest.TestCase):
@@ -74,6 +74,34 @@ class ScoringTest(unittest.TestCase):
         self.assertGreaterEqual(scored.loc[0, "评分"], 0.85)
         self.assertIn("自由现金流5年合计", scored.loc[0, "缺失项"])
         self.assertIn("经营现金流/净利润5年", scored.loc[0, "未通过规则"])
+
+    def test_hk_rules_use_only_lixinger_available_fields(self):
+        frame = pd.DataFrame(
+            [
+                {
+                    "交易所": "hk",
+                    "代码": "00819",
+                    "公司": "港股样本",
+                    "PE-TTM": 5,
+                    "PB": 0.6,
+                    "PE×PB": 3,
+                    "PE十年分位": 10,
+                    "PB十年分位": 10,
+                    "股息率": 5,
+                    "ROE5均": 10,
+                    "归母净利润5年全正": True,
+                    "资产负债率": 50,
+                    "流动比率": 1.3,
+                    "经营现金流/净利润5年": 1.0,
+                }
+            ]
+        )
+
+        scored = score_ordinary_companies(frame, rules=rules_for_market("hk"))
+
+        self.assertTrue(scored.loc[0, "A档"])
+        self.assertEqual(scored.loc[0, "缺失项"], "")
+        self.assertEqual(scored.loc[0, "可判断规则数"], 11)
 
     def test_bank_candidate_pool_filters_and_tags_banks(self):
         frame = pd.DataFrame(

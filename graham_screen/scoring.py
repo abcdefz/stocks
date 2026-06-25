@@ -53,6 +53,25 @@ ORDINARY_RULES: tuple[Rule, ...] = (
 )
 
 
+HK_AVAILABLE_RULE_COLUMNS = {
+    "PE-TTM",
+    "PB",
+    "PE×PB",
+    "PE十年分位",
+    "PB十年分位",
+    "股息率",
+    "ROE5均",
+    "归母净利润5年全正",
+    "资产负债率",
+    "流动比率",
+    "经营现金流/净利润5年",
+}
+
+HK_ORDINARY_RULES: tuple[Rule, ...] = tuple(
+    rule for rule in ORDINARY_RULES if rule.column in HK_AVAILABLE_RULE_COLUMNS
+)
+
+
 VALUATION_RULE_NAMES = {
     "PE-TTM > 0 且 <= 15",
     "PB > 0 且 <= 1.5",
@@ -66,12 +85,18 @@ def _missing(value: object) -> bool:
     return pd.isna(value)
 
 
-def _score_row(row: pd.Series) -> dict[str, object]:
+def rules_for_market(market: object) -> tuple[Rule, ...]:
+    if str(market).lower() == "hk":
+        return HK_ORDINARY_RULES
+    return ORDINARY_RULES
+
+
+def _score_row(row: pd.Series, rules: tuple[Rule, ...]) -> dict[str, object]:
     passed: list[str] = []
     failed: list[str] = []
     missing: list[str] = []
 
-    for rule in ORDINARY_RULES:
+    for rule in rules:
         if rule.column not in row.index or _missing(row[rule.column]):
             missing.append(rule.column)
             continue
@@ -83,7 +108,7 @@ def _score_row(row: pd.Series) -> dict[str, object]:
     judgeable = len(passed) + len(failed)
     score = len(passed) / judgeable if judgeable else pd.NA
     valuation_gate = not any(name in failed for name in VALUATION_RULE_NAMES) and not any(
-        rule.column in missing for rule in ORDINARY_RULES if rule.name in VALUATION_RULE_NAMES
+        rule.column in missing for rule in rules if rule.name in VALUATION_RULE_NAMES
     )
     is_a = len(missing) == 0 and len(failed) == 0
     is_b = (not is_a) and valuation_gate and score is not pd.NA and score >= 0.85
@@ -100,7 +125,10 @@ def _score_row(row: pd.Series) -> dict[str, object]:
     }
 
 
-def score_ordinary_companies(frame: pd.DataFrame) -> pd.DataFrame:
+def score_ordinary_companies(
+    frame: pd.DataFrame,
+    rules: tuple[Rule, ...] = ORDINARY_RULES,
+) -> pd.DataFrame:
     if frame.empty:
         result = frame.copy()
         for column in ("通过规则数", "可判断规则数", "评分", "A档", "B档", "缺失项", "未通过规则", "通过规则"):
@@ -108,7 +136,7 @@ def score_ordinary_companies(frame: pd.DataFrame) -> pd.DataFrame:
         return result
 
     result = frame.copy()
-    scores = pd.DataFrame([_score_row(row) for _, row in result.iterrows()], index=result.index)
+    scores = pd.DataFrame([_score_row(row, rules) for _, row in result.iterrows()], index=result.index)
     for column in scores.columns:
         result[column] = scores[column]
     return result

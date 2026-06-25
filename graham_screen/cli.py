@@ -10,7 +10,7 @@ from .classification import financial_subtype
 from .columns import canonicalize_csv1, canonicalize_csv2
 from .io import read_csv_with_fallback
 from .metrics import derive_metrics
-from .scoring import ORDINARY_RULES, build_bank_candidate_pool, score_ordinary_companies
+from .scoring import ORDINARY_RULES, Rule, build_bank_candidate_pool, rules_for_market, score_ordinary_companies
 from .workbook import write_workbook
 
 
@@ -116,8 +116,19 @@ def _sort_b(frame: pd.DataFrame) -> pd.DataFrame:
     return frame.sort_values(columns, ascending=[False, True, False][: len(columns)])
 
 
-def _missing_fields_sheet(frame: pd.DataFrame) -> pd.DataFrame:
-    fields = sorted({rule.column for rule in ORDINARY_RULES} | set(BANK_COLUMNS))
+def _market_for_frame(frame: pd.DataFrame) -> str:
+    exchanges = {
+        str(exchange).lower()
+        for exchange in frame.get("交易所", pd.Series(dtype=str)).dropna().unique()
+        if str(exchange).lower() in {"hk", "sh", "sz"}
+    }
+    if exchanges == {"hk"}:
+        return "hk"
+    return "cn"
+
+
+def _missing_fields_sheet(frame: pd.DataFrame, ordinary_rules: tuple[Rule, ...]) -> pd.DataFrame:
+    fields = sorted({rule.column for rule in ordinary_rules} | set(BANK_COLUMNS))
     rows = []
     for field in fields:
         exists = field in frame.columns
@@ -127,17 +138,17 @@ def _missing_fields_sheet(frame: pd.DataFrame) -> pd.DataFrame:
                 "字段": field,
                 "是否存在": "是" if exists else "否",
                 "缺失数量": missing_count,
-                "说明": "用于普通企业评分或银行候选池" if field in {rule.column for rule in ORDINARY_RULES} else "用于展示或银行候选池",
+                "说明": "用于普通企业评分或银行候选池" if field in {rule.column for rule in ordinary_rules} else "用于展示或银行候选池",
             }
         )
     return pd.DataFrame(rows)
 
 
-def _summary_sheet(result_values: dict[str, object]) -> pd.DataFrame:
+def _summary_sheet(result_values: dict[str, object], ordinary_rules: tuple[Rule, ...]) -> pd.DataFrame:
     rows = [{"项目": key, "值": value} for key, value in result_values.items()]
     rows.extend(
         [
-            {"项目": "普通企业规则摘要", "值": "；".join(rule.name for rule in ORDINARY_RULES)},
+            {"项目": "普通企业规则摘要", "值": "；".join(rule.name for rule in ordinary_rules)},
             {"项目": "金融限制说明", "值": FINANCIAL_LIMITATION_NOTE},
             {"项目": "使用限制", "值": LIMITATION_NOTES},
         ]
@@ -160,9 +171,11 @@ def run_screen(csv1_path: str | Path, csv2_path: str | Path, output_path: str | 
     merged = csv1.merge(csv2, on=key_columns, how="left", validate="one_to_one")
     merged = derive_metrics(merged)
     merged["金融分类"] = merged.apply(financial_subtype, axis=1)
+    market = _market_for_frame(merged)
+    ordinary_rules = rules_for_market(market)
 
     non_financial = merged[merged["金融分类"] == "非金融"].copy()
-    all_scored = score_ordinary_companies(non_financial)
+    all_scored = score_ordinary_companies(non_financial, rules=ordinary_rules)
     a_frame = _sort_a(all_scored[all_scored["A档"] == True].copy()).reset_index(drop=True)  # noqa: E712
     b_frame = _sort_b(all_scored[all_scored["B档"] == True].copy()).reset_index(drop=True)  # noqa: E712
     rejected = all_scored[(all_scored["A档"] != True) & (all_scored["B档"] != True)].copy()  # noqa: E712
@@ -184,18 +197,19 @@ def run_screen(csv1_path: str | Path, csv2_path: str | Path, output_path: str | 
         "B档数量": len(b_frame),
         "银行候选池数量": len(bank_pool),
         "金融单独观察数量": len(financial_observation),
+        "普通企业规则口径": "港股可得字段版" if market == "hk" else "A股完整规则版",
         "缺失字段说明": "详见 缺失字段 sheet；评分时缺失规则进入 缺失项。",
     }
 
     sheets = {
-        "说明": _summary_sheet(summary_values),
+        "说明": _summary_sheet(summary_values, ordinary_rules),
         "A档_严格通过": _select_columns(a_frame, DISPLAY_COLUMNS),
         "B档_观察名单": _select_columns(b_frame, DISPLAY_COLUMNS),
         "银行_候选池": _select_columns(bank_pool, BANK_COLUMNS),
         "金融_单独观察": _select_columns(financial_observation, DISPLAY_COLUMNS + ["金融分类"]),
         "全部评分": _select_columns(all_scored, DISPLAY_COLUMNS + ["A档", "B档", "通过规则数", "可判断规则数"]),
         "剔除名单": _select_columns(rejected, DISPLAY_COLUMNS),
-        "缺失字段": _missing_fields_sheet(merged),
+        "缺失字段": _missing_fields_sheet(merged, ordinary_rules),
     }
 
     output = write_workbook(output_path, sheets)

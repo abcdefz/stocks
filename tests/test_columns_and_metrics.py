@@ -67,6 +67,36 @@ class ColumnsAndMetricsTest(unittest.TestCase):
         self.assertEqual(canonical.loc[0, "扣非归母净利润_4"], 4)
         self.assertEqual(canonical.loc[0, "股息率5年平均"], 4.2)
 
+    def test_canonicalize_csv_maps_hk_market_cap_and_parent_profit_history(self):
+        csv1 = pd.DataFrame(
+            {
+                "交易所": ["hk"],
+                "代码": ['="00819"'],
+                "公司": ["天能动力"],
+                "H股市值 最新时间 (亿港币)": ["53.7"],
+                "PE-TTM 最新时间 ": ["3.3"],
+                "PB 最新时间 ": ["0.3"],
+            }
+        )
+        csv2 = pd.DataFrame(
+            {
+                "交易所": ["hk"],
+                "代码": ['="00819"'],
+                "归属于母公司股东及其他权益持有者的净利润 累积 【动态日期】:【最新Q4（2025-Q4）】->【2025-12-31】 (亿港币)": ["10"],
+                "归属于母公司股东及其他权益持有者的净利润 累积 【动态日期】:【最新Q4（2025-Q4）偏移1年】->【2024-12-31】 (亿港币)": ["9"],
+                "归属于母公司股东及其他权益持有者的净利润 累积 【动态日期】:【最新Q4（2025-Q4）偏移2年】->【2023-12-31】 (亿港币)": ["8"],
+                "归属于母公司股东及其他权益持有者的净利润 累积 【动态日期】:【最新Q4（2025-Q4）偏移3年】->【2022-12-31】 (亿港币)": ["7"],
+                "归属于母公司股东及其他权益持有者的净利润 累积 【动态日期】:【最新Q4（2025-Q4）偏移4年】->【2021-12-31】 (亿港币)": ["6"],
+            }
+        )
+
+        canonical1 = canonicalize_csv1(csv1)
+        canonical2 = canonicalize_csv2(csv2)
+
+        self.assertEqual(canonical1.loc[0, "A股市值"], 53.7)
+        self.assertEqual(canonical2.loc[0, "归母净利润_0"], 10)
+        self.assertEqual(canonical2.loc[0, "归母净利润_4"], 6)
+
     def test_derive_metrics_calculates_history_fields(self):
         frame = pd.DataFrame(
             {
