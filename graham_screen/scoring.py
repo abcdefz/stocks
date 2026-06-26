@@ -80,6 +80,9 @@ VALUATION_RULE_NAMES = {
     "PB十年分位 <= 20%",
 }
 
+C_MIN_SCORE = 0.70
+B_MIN_SCORE = 0.85
+
 
 def _missing(value: object) -> bool:
     return pd.isna(value)
@@ -111,7 +114,8 @@ def _score_row(row: pd.Series, rules: tuple[Rule, ...]) -> dict[str, object]:
         rule.column in missing for rule in rules if rule.name in VALUATION_RULE_NAMES
     )
     is_a = len(missing) == 0 and len(failed) == 0
-    is_b = (not is_a) and valuation_gate and score is not pd.NA and score >= 0.85
+    is_b = (not is_a) and valuation_gate and score is not pd.NA and score >= B_MIN_SCORE
+    is_c = (not is_a) and (not is_b) and valuation_gate and score is not pd.NA and score >= C_MIN_SCORE
 
     return {
         "通过规则数": len(passed),
@@ -119,6 +123,7 @@ def _score_row(row: pd.Series, rules: tuple[Rule, ...]) -> dict[str, object]:
         "评分": score,
         "A档": is_a,
         "B档": is_b,
+        "C档": is_c,
         "缺失项": "；".join(missing),
         "未通过规则": "；".join(failed),
         "通过规则": "；".join(passed),
@@ -131,7 +136,7 @@ def score_ordinary_companies(
 ) -> pd.DataFrame:
     if frame.empty:
         result = frame.copy()
-        for column in ("通过规则数", "可判断规则数", "评分", "A档", "B档", "缺失项", "未通过规则", "通过规则"):
+        for column in ("通过规则数", "可判断规则数", "评分", "A档", "B档", "C档", "缺失项", "未通过规则", "通过规则"):
             result[column] = []
         return result
 

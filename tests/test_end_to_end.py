@@ -48,16 +48,23 @@ class EndToEndTest(unittest.TestCase):
             self.assertEqual(result.csv2_row_count, 1717)
             self.assertEqual(result.merged_company_count, 1717)
             self.assertGreaterEqual(result.non_financial_count, 1)
+            self.assertGreaterEqual(result.c_count, 1)
 
-            workbook = openpyxl.load_workbook(output, read_only=True)
+            workbook = openpyxl.load_workbook(output)
             self.assertIn("说明", workbook.sheetnames)
             self.assertIn("A档_严格通过", workbook.sheetnames)
             self.assertIn("B档_观察名单", workbook.sheetnames)
+            self.assertIn("C档_低优先级观察", workbook.sheetnames)
             self.assertIn("银行_候选池", workbook.sheetnames)
             self.assertIn("金融_单独观察", workbook.sheetnames)
             self.assertIn("全部评分", workbook.sheetnames)
             self.assertIn("剔除名单", workbook.sheetnames)
             self.assertIn("缺失字段", workbook.sheetnames)
+            bank_sheet = workbook["银行_候选池"]
+            self.assertEqual(bank_sheet["B2"].value, "000001")
+            self.assertEqual(bank_sheet["B2"].data_type, "s")
+            self.assertEqual(bank_sheet["B2"].number_format, "000000")
+            self.assertTrue(bank_sheet["B2"].quotePrefix)
 
 
 if __name__ == "__main__":

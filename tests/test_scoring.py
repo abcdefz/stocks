@@ -103,6 +103,41 @@ class ScoringTest(unittest.TestCase):
         self.assertEqual(scored.loc[0, "缺失项"], "")
         self.assertEqual(scored.loc[0, "可判断规则数"], 11)
 
+    def test_c_low_priority_observation_uses_valuation_gate_and_score_range(self):
+        frame = pd.DataFrame(
+            [
+                {
+                    "交易所": "sz",
+                    "代码": "000003",
+                    "公司": "低优先级观察公司",
+                    "PE-TTM": 10,
+                    "PB": 1,
+                    "PE×PB": 10,
+                    "PE十年分位": 10,
+                    "PB十年分位": 10,
+                    "股息率": 4,
+                    "ROE5均": 9,
+                    "扣非ROE5均": 7,
+                    "归母净利润5年全正": True,
+                    "扣非归母净利润5年全正": True,
+                    "资产负债率": 70,
+                    "有息负债率": 40,
+                    "流动比率": 1.0,
+                    "速动比率": 0.7,
+                    "经营现金流/净利润5年": 1.0,
+                    "自由现金流5年合计": 1,
+                }
+            ]
+        )
+
+        scored = score_ordinary_companies(frame)
+
+        self.assertFalse(scored.loc[0, "A档"])
+        self.assertFalse(scored.loc[0, "B档"])
+        self.assertTrue(scored.loc[0, "C档"])
+        self.assertEqual(scored.loc[0, "评分"], 0.75)
+        self.assertIn("资产负债率", scored.loc[0, "未通过规则"])
+
     def test_bank_candidate_pool_filters_and_tags_banks(self):
         frame = pd.DataFrame(
             [

@@ -92,6 +92,7 @@ class ScreenResult:
     other_financial_count: int
     a_count: int
     b_count: int
+    c_count: int
     bank_candidate_count: int
     financial_observation_count: int
     sheets: dict[str, pd.DataFrame]
@@ -178,7 +179,10 @@ def run_screen(csv1_path: str | Path, csv2_path: str | Path, output_path: str | 
     all_scored = score_ordinary_companies(non_financial, rules=ordinary_rules)
     a_frame = _sort_a(all_scored[all_scored["A档"] == True].copy()).reset_index(drop=True)  # noqa: E712
     b_frame = _sort_b(all_scored[all_scored["B档"] == True].copy()).reset_index(drop=True)  # noqa: E712
-    rejected = all_scored[(all_scored["A档"] != True) & (all_scored["B档"] != True)].copy()  # noqa: E712
+    c_frame = _sort_b(all_scored[all_scored["C档"] == True].copy()).reset_index(drop=True)  # noqa: E712
+    rejected = all_scored[
+        (all_scored["A档"] != True) & (all_scored["B档"] != True) & (all_scored["C档"] != True)  # noqa: E712
+    ].copy()
 
     bank_pool = build_bank_candidate_pool(merged)
     financial_observation = merged[merged["金融分类"].isin(["保险", "证券", "其他金融"])].copy()
@@ -195,19 +199,21 @@ def run_screen(csv1_path: str | Path, csv2_path: str | Path, output_path: str | 
         "其他金融数": int((merged["金融分类"] == "其他金融").sum()),
         "A档数量": len(a_frame),
         "B档数量": len(b_frame),
+        "C档数量": len(c_frame),
         "银行候选池数量": len(bank_pool),
         "金融单独观察数量": len(financial_observation),
         "普通企业规则口径": "港股可得字段版" if market == "hk" else "A股完整规则版",
-        "缺失字段说明": "详见 缺失字段 sheet；评分时缺失规则进入 缺失项。",
+        "缺失字段说明": "详见 缺失字段 sheet；评分时缺失规则进入 缺失项。C档为通过估值硬门槛且评分在70%-85%之间的低优先级观察。",
     }
 
     sheets = {
         "说明": _summary_sheet(summary_values, ordinary_rules),
         "A档_严格通过": _select_columns(a_frame, DISPLAY_COLUMNS),
         "B档_观察名单": _select_columns(b_frame, DISPLAY_COLUMNS),
+        "C档_低优先级观察": _select_columns(c_frame, DISPLAY_COLUMNS),
         "银行_候选池": _select_columns(bank_pool, BANK_COLUMNS),
         "金融_单独观察": _select_columns(financial_observation, DISPLAY_COLUMNS + ["金融分类"]),
-        "全部评分": _select_columns(all_scored, DISPLAY_COLUMNS + ["A档", "B档", "通过规则数", "可判断规则数"]),
+        "全部评分": _select_columns(all_scored, DISPLAY_COLUMNS + ["A档", "B档", "C档", "通过规则数", "可判断规则数"]),
         "剔除名单": _select_columns(rejected, DISPLAY_COLUMNS),
         "缺失字段": _missing_fields_sheet(merged, ordinary_rules),
     }
@@ -227,6 +233,7 @@ def run_screen(csv1_path: str | Path, csv2_path: str | Path, output_path: str | 
         other_financial_count=summary_values["其他金融数"],
         a_count=len(a_frame),
         b_count=len(b_frame),
+        c_count=len(c_frame),
         bank_candidate_count=len(bank_pool),
         financial_observation_count=len(financial_observation),
         sheets=sheets,
@@ -244,6 +251,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"输出文件: {result.output_path}")
     print(f"A档数量: {result.a_count}")
     print(f"B档数量: {result.b_count}")
+    print(f"C档数量: {result.c_count}")
     print(f"银行候选池数量: {result.bank_candidate_count}")
     print(f"金融单独观察数量: {result.financial_observation_count}")
     return 0
