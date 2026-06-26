@@ -22,6 +22,19 @@ uv run graham-screen \
   --output 格雷厄姆第一版筛选结果.xlsx
 ```
 
+## Portfolio Engine
+
+The parallel portfolio engine emits JSON for a simple Graham-style equal-weight portfolio. It reuses the same CSV inputs but does not replace the Excel workbook report.
+
+```bash
+uv run graham-portfolio \
+  公司筛选_格雷厄姆CSV1_20260622_212016.csv \
+  公司筛选_格雷厄姆CSV2_20260622_212026.csv \
+  --output portfolio.json
+```
+
+The JSON output contains `portfolio`, `watchlist`, and `reject`. The portfolio is fixed at the top 20 MOS-ranked stocks, and the watchlist is ranks 21-40. This is still a quantitative first-pass screen and not investment advice.
+
 ## Test
 
 ```bash
